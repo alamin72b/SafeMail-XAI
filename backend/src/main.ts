@@ -20,7 +20,6 @@ async function bootstrap(): Promise<void> {
       whitelist: true, // strip unknown properties
       forbidNonWhitelisted: true, // reject payloads with extra fields
       transform: true, // auto-transform to DTO class instances
-      transformOptions: { enableImplicitConversion: false },
     }),
   );
 
