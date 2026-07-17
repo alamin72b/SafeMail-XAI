@@ -10,9 +10,13 @@ async function bootstrap(): Promise<void> {
   app.setGlobalPrefix('api/v1');
 
   app.enableCors({
-    origin: process.env.FRONTEND_ORIGIN ?? 'http://localhost:3000',
-    methods: ['GET', 'POST'],
-    allowedHeaders: ['Content-Type'],
+    origin:
+      process.env.NODE_ENV === 'production'
+        ? (process.env.EXTENSION_ORIGIN ??
+          'chrome-extension://<your-extension-id>')
+        : true,
+    methods: ['GET', 'POST', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
   });
 
   app.useGlobalPipes(
