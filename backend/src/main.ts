@@ -24,8 +24,15 @@ async function bootstrap(): Promise<void> {
   );
 
   const port = Number(process.env.PORT ?? 4000);
-  await app.listen(port);
-  logger.log(`🚀 Inference API listening on http://localhost:${port}/api/v1`);
+
+  try {
+    await app.listen(port, '0.0.0.0');
+    logger.log(`🚀 Inference API listening on http://0.0.0.0:${port}/api/v1`);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    logger.error(`Failed to bind to port ${port}: ${message}`);
+    process.exit(1);
+  }
 }
 
 bootstrap().catch((err) => {

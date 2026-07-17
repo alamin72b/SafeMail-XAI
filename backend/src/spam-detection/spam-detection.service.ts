@@ -2,186 +2,142 @@ import {
   Injectable,
   InternalServerErrorException,
   Logger,
-  OnModuleDestroy,
   OnModuleInit,
-  ServiceUnavailableException,
 } from '@nestjs/common';
 import * as ort from 'onnxruntime-node';
-import * as path from 'path';
-import * as fs from 'fs';
-import * as os from 'os';
-import { TokenizerService } from './tokenizer.service';
+import { AutoTokenizer, PreTrainedTokenizer, env } from '@xenova/transformers';
+import * as os from 'node:os';
+import * as path from 'node:path';
+import * as fs from 'node:fs';
 import { ClassifyEmailDto } from './dto/classify-email.dto';
-import { ClassificationResponse } from './interfaces/classification.interface';
+import { SpamPredictionResultDto } from './dto/spam-prediction-result.dto';
 
-// Define the missing release method explicitly to maintain strict type safety
-interface ManagedSession extends ort.InferenceSession {
-  release?: () => Promise<void>;
-}
-
-/**
- * SpamDetectionService — Embedded Inference Engine.
- *
- * Loads model_quantized.onnx directly into process memory at boot via
- * onnxruntime-node. No Python sidecar, no network hop. Per-request flow:
- * validate → tokenize → session.run() → softmax → response.
- */
 @Injectable()
-export class SpamDetectionService implements OnModuleInit, OnModuleDestroy {
+export class SpamDetectionService implements OnModuleInit {
   private readonly logger = new Logger(SpamDetectionService.name);
 
-  // Implemented the ManagedSession interface here
-  private session: ManagedSession | null = null;
-
-  private static readonly MODEL_NAME = 'xlm-roberta-base (fine-tuned)';
-  /** Label mapping from the fine-tuning config: index 0 = ham, index 1 = spam. */
+  // ALIGNED WITH COLAB: Ham is index 0, Spam is index 1.
   private static readonly HAM_INDEX = 0;
   private static readonly SPAM_INDEX = 1;
-  /** Decision threshold on P(spam | text). */
+
   private static readonly SPAM_THRESHOLD = 0.5;
+  private static readonly MAX_SEQUENCE_LENGTH = 128;
 
-  constructor(private readonly tokenizerService: TokenizerService) {}
-
-  // ------------------------------------------------------------- lifecycle
+  private session: ort.InferenceSession | null = null;
+  private tokenizer: PreTrainedTokenizer | null = null;
 
   async onModuleInit(): Promise<void> {
-    const modelPath = path.resolve(
-      process.env.MODEL_PATH ??
-        path.join(process.cwd(), 'models', 'model_quantized.onnx'),
-    );
+    const modelPath = this.resolveModelPath();
 
-    if (!fs.existsSync(modelPath)) {
-      this.logger.error(`Model file not found at: ${modelPath}`);
-      throw new Error(
-        `model_quantized.onnx not found at ${modelPath}. ` +
-          `Place the file in backend/models/ or set the MODEL_PATH environment variable.`,
-      );
-    }
+    // NOTE: Set this environment variable to the directory of your fine-tuned tokenizer
+    // to match the specific vocabulary generated during training.
+    const tokenizerId = process.env.TOKENIZER_ID ?? 'Xenova/xlm-roberta-base';
 
-    const startedAt = Date.now();
+    env.cacheDir =
+      process.env.TOKENIZER_CACHE_DIR ??
+      path.resolve(process.cwd(), '.tokenizer-cache');
+    env.allowLocalModels = true;
+
+    this.logger.log(`Loading ONNX model from: ${modelPath}`);
     this.session = await ort.InferenceSession.create(modelPath, {
       executionProviders: ['cpu'],
       graphOptimizationLevel: 'all',
-      // INT8 quantized transformer models benefit from intra-op parallelism.
-      intraOpNumThreads: Math.max(1, Math.min(4, os.cpus().length)),
-      interOpNumThreads: 1,
+      intraOpNumThreads: Math.min(4, os.cpus().length),
       enableCpuMemArena: true,
-      enableMemPattern: true,
     });
 
-    this.logger.log(
-      `✅ ONNX session loaded in ${Date.now() - startedAt}ms | ` +
-        `inputs: [${this.session.inputNames.join(', ')}] | ` +
-        `outputs: [${this.session.outputNames.join(', ')}]`,
-    );
+    this.logger.log(`Loading tokenizer: ${tokenizerId}`);
+    this.tokenizer = await AutoTokenizer.from_pretrained(tokenizerId);
+
+    this.logger.log('Spam detection service initialized.');
   }
 
-  async onModuleDestroy(): Promise<void> {
-    // Safely executes release if the method exists in the runtime definition
-    if (this.session?.release) {
-      await this.session.release();
-    }
-
-    this.session = null;
-    this.logger.log('ONNX session released');
-  }
-
-  isReady(): boolean {
-    return this.session !== null;
-  }
-
-  // ------------------------------------------------------------- inference
-
-  async classify(dto: ClassifyEmailDto): Promise<ClassificationResponse> {
-    if (this.session === null) {
-      throw new ServiceUnavailableException(
-        'Inference engine is not ready. Retry shortly.',
+  async classify(dto: ClassifyEmailDto): Promise<SpamPredictionResultDto> {
+    if (this.session === null || this.tokenizer === null) {
+      throw new InternalServerErrorException(
+        'Spam detection model is not initialized.',
       );
     }
 
-    const { inputIds, attentionMask, length } = this.tokenizerService.encode(
-      dto.body,
+    const encoded = await this.tokenizer(dto.body, {
+      truncation: true,
+      max_length: SpamDetectionService.MAX_SEQUENCE_LENGTH,
+      padding: 'max_length', // ALIGNED WITH COLAB: Forces static [1, 128] tensor shape
+    });
+
+    const inputIds: bigint[] = Array.from(
+      encoded.input_ids.data as BigInt64Array,
     );
+    const attentionMask: bigint[] = Array.from(
+      encoded.attention_mask.data as BigInt64Array,
+    );
+
+    // Because of padding: 'max_length', sequenceLength is guaranteed to be 128
+    const sequenceLength = inputIds.length;
 
     const feeds: Record<string, ort.Tensor> = {
-      input_ids: new ort.Tensor('int64', inputIds, [1, length]),
-      attention_mask: new ort.Tensor('int64', attentionMask, [1, length]),
+      input_ids: new ort.Tensor('int64', BigInt64Array.from(inputIds), [
+        1,
+        sequenceLength,
+      ]),
+      attention_mask: new ort.Tensor(
+        'int64',
+        BigInt64Array.from(attentionMask),
+        [1, sequenceLength],
+      ),
     };
 
-    // Defensive alignment with the actual graph inputs: some ONNX exports of
-    // sequence-classification models also declare token_type_ids.
-    if (this.session.inputNames.includes('token_type_ids')) {
-      feeds['token_type_ids'] = new ort.Tensor(
-        'int64',
-        new BigInt64Array(length),
-        [1, length],
-      );
-    }
-
-    let results: Record<string, ort.Tensor>;
-    const inferenceStart = process.hrtime.bigint();
-    try {
-      results = await this.session.run(feeds);
-    } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : String(error);
-      this.logger.error(`ONNX inference failed: ${message}`);
-      throw new InternalServerErrorException('Model inference failed');
-    }
-    const inferenceTimeMs =
-      Number(process.hrtime.bigint() - inferenceStart) / 1e6;
-
-    const outputName = this.session.outputNames.includes('logits')
-      ? 'logits'
-      : this.session.outputNames[0];
-    const logitsTensor = results[outputName];
+    const output = await this.session.run(feeds);
+    const logitsTensor = output['logits'];
 
     if (logitsTensor === undefined) {
       throw new InternalServerErrorException(
-        `Model output "${outputName}" is missing`,
+        'Model output did not contain logits.',
       );
     }
 
-    const logitsData = logitsTensor.data as Float32Array;
-    if (logitsData.length < 2) {
-      throw new InternalServerErrorException(
-        `Unexpected logits shape: expected 2 classes, got ${logitsData.length}`,
-      );
-    }
+    const logits = logitsTensor.data as Float32Array;
+    const probabilities = this.softmax([Number(logits[0]), Number(logits[1])]);
 
-    const hamLogit = logitsData[SpamDetectionService.HAM_INDEX];
-    const spamLogit = logitsData[SpamDetectionService.SPAM_INDEX];
-    const [hamProbability, spamProbability] = this.softmax([
-      hamLogit,
-      spamLogit,
-    ]);
+    const spamProbability = probabilities[SpamDetectionService.SPAM_INDEX];
+    const hamProbability = probabilities[SpamDetectionService.HAM_INDEX];
+    const isSpam = spamProbability >= SpamDetectionService.SPAM_THRESHOLD;
 
     return {
-      verdict:
-        spamProbability >= SpamDetectionService.SPAM_THRESHOLD ? 'SPAM' : 'HAM',
+      isSpam,
+      label: isSpam ? 'spam' : 'ham',
       spamProbability: this.round(spamProbability),
       hamProbability: this.round(hamProbability),
-      logits: [this.round(hamLogit), this.round(spamLogit)],
-      tokenCount: length,
-      inferenceTimeMs: Math.round(inferenceTimeMs * 100) / 100,
-      model: {
-        name: SpamDetectionService.MODEL_NAME,
-        quantization: 'INT8 (dynamic)',
-        runtime: 'onnxruntime-node',
-      },
-      processedAt: new Date().toISOString(),
+      threshold: SpamDetectionService.SPAM_THRESHOLD,
+      tokenCount: sequenceLength,
     };
   }
 
-  // ---------------------------------------------------------------- maths
+  isReady(): boolean {
+    return this.session !== null && this.tokenizer !== null;
+  }
 
   private softmax(logits: readonly number[]): number[] {
-    const max = Math.max(...logits);
-    const exps = logits.map((logit) => Math.exp(logit - max));
-    const sum = exps.reduce((acc, value) => acc + value, 0);
-    return exps.map((value) => value / sum);
+    const maxLogit = Math.max(...logits);
+    const exponentials = logits.map((value) => Math.exp(value - maxLogit));
+    const sum = exponentials.reduce((total, value) => total + value, 0);
+    return exponentials.map((value) => value / sum);
   }
 
   private round(value: number): number {
-    return Math.round(value * 10_000) / 10_000;
+    return Math.round(value * 10000) / 10000;
+  }
+
+  private resolveModelPath(): string {
+    const modelPath =
+      process.env.MODEL_PATH ??
+      path.resolve(process.cwd(), 'models', 'model.onnx');
+
+    if (!fs.existsSync(modelPath)) {
+      throw new InternalServerErrorException(
+        `ONNX model not found at: ${modelPath}`,
+      );
+    }
+    return modelPath;
   }
 }
