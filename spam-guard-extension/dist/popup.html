@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>SpamGuard</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <main>
+      <h1>SpamGuard</h1>
+      <section>
+        <h2>Latest scan</h2>
+        <div id="current-verdict" class="verdict-card"></div>
+        <button id="why-button" type="button" hidden>Why?</button>
+        <div id="explanation-panel" class="explanation" hidden></div>
+      </section>
+      <section>
+        <h2>Recent scans</h2>
+        <ul id="history-list"></ul>
+      </section>
+    </main>
+    <script src="popup.js"></script>
+  </body>
+</html>

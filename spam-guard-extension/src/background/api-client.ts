@@ -1,11 +1,11 @@
 import {
   isNestErrorBody,
-  isSpamPredictionResult,
+  isBackendClassificationResponse,
   type SpamPredictionResult,
 } from '../shared/types';
 
 const REQUEST_TIMEOUT_MS = 8000;
-const PREDICT_PATH = '/spam-detection/predict';
+const CLASSIFY_PATH = '/spam-detection/classify';
 
 export class ApiError extends Error {
   public constructor(
@@ -39,7 +39,7 @@ async function requestOnce(
   const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
 
   try {
-    const response = await fetch(`${apiBaseUrl}${PREDICT_PATH}`, {
+    const response = await fetch(`${apiBaseUrl}${CLASSIFY_PATH}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ body }),
@@ -51,10 +51,16 @@ async function requestOnce(
     if (!response.ok) {
       throw new ApiError(formatHttpError(response.status, payload), true);
     }
-    if (!isSpamPredictionResult(payload)) {
+    if (!isBackendClassificationResponse(payload)) {
       throw new ApiError('API returned a malformed prediction payload.', true);
     }
-    return payload;
+    return {
+      isSpam: payload.verdict === 'SPAM',
+      label: payload.verdict === 'SPAM' ? 'spam' : 'ham',
+      spamProbability: payload.spamProbability,
+      hamProbability: payload.hamProbability,
+      threshold: 0.5,
+    };
   } catch (error) {
     if (error instanceof DOMException && error.name === 'AbortError') {
       throw new ApiError('Spam detection request timed out.', false);
