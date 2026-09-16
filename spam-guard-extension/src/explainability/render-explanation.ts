@@ -1,4 +1,4 @@
-import type { SpamExplanation } from './explanation-provider';
+import type { SpamExplanation, TokenAttribution } from './explanation-provider';
 
 export function renderExplanationInto(
   target: HTMLElement,
@@ -19,6 +19,15 @@ export function renderExplanationInto(
     return;
   }
 
+  if (explanation.wasTruncated === true) {
+    const notice = document.createElement('p');
+    notice.className = 'spamguard-explanation-truncated';
+    notice.textContent =
+      'Only the first 128 tokens were analyzed; text past this point ' +
+      'was not seen by the model.';
+    target.appendChild(notice);
+  }
+
   const heatmap = document.createElement('div');
   heatmap.className = 'spamguard-heatmap';
   for (const attribution of explanation.attributions) {
@@ -30,6 +39,58 @@ export function renderExplanationInto(
     heatmap.appendChild(token);
   }
   target.appendChild(heatmap);
+
+  if (explanation.topSpam !== undefined && explanation.topSpam.length > 0) {
+    target.appendChild(
+      renderSignalList(
+        'Top spam signals',
+        explanation.topSpam,
+        'spam',
+      ),
+    );
+  }
+  if (explanation.topHam !== undefined && explanation.topHam.length > 0) {
+    target.appendChild(
+      renderSignalList(
+        'Top ham signals',
+        explanation.topHam,
+        'ham',
+      ),
+    );
+  }
+
+  if (explanation.caveat !== undefined) {
+    const caveat = document.createElement('p');
+    caveat.className = 'spamguard-explanation-caveat';
+    caveat.textContent = explanation.caveat;
+    target.appendChild(caveat);
+  }
+}
+
+function renderSignalList(
+  heading: string,
+  attributions: readonly TokenAttribution[],
+  kind: 'spam' | 'ham',
+): HTMLElement {
+  const container = document.createElement('div');
+  container.className = `spamguard-signal-list spamguard-signal-list-${kind}`;
+
+  const title = document.createElement('p');
+  title.className = 'spamguard-signal-list-heading';
+  title.textContent = heading;
+  container.appendChild(title);
+
+  const list = document.createElement('ul');
+  list.className = 'spamguard-signal-list-items';
+  for (const attribution of attributions) {
+    const item = document.createElement('li');
+    item.textContent =
+      `${attribution.token.trim()} (${attribution.importance.toFixed(3)})`;
+    list.appendChild(item);
+  }
+  container.appendChild(list);
+
+  return container;
 }
 
 function importanceToColor(importance: number): string {

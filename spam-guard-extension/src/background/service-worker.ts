@@ -1,4 +1,5 @@
 import { appendScanRecord } from '../shared/history';
+import { setLastScannedEmailBody } from '../shared/last-scanned-email';
 import {
   isPredictEmailRequest,
   type PredictionResponse,
@@ -64,6 +65,7 @@ async function handlePrediction(
       spamProbability: result.spamProbability,
       scannedAt: Date.now(),
     });
+    await setLastScannedEmailBody(trimmed);
 
     return { type: 'PREDICTION_OK', result };
   } catch (error) {

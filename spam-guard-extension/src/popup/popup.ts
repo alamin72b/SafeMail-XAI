@@ -1,9 +1,10 @@
-import { PlaceholderExplanationProvider } from '../explainability/explanation-provider';
 import { renderExplanationInto } from '../explainability/render-explanation';
+import { ShapExplanationProvider } from '../explainability/shap-explanation-provider';
 import { getScanHistory } from '../shared/history';
+import { getLastScannedEmailBody } from '../shared/last-scanned-email';
 import type { ScanRecord } from '../shared/types';
 
-const provider = new PlaceholderExplanationProvider();
+const provider = new ShapExplanationProvider();
 const dateTimeFormat = new Intl.DateTimeFormat(
   undefined,
   {
@@ -52,13 +53,14 @@ async function initialize(): Promise<void> {
 
   if (latest !== undefined) {
     whyButton.hidden = false;
-    whyButton.addEventListener(
+    const explainButton = whyButton as HTMLButtonElement;
+    explainButton.addEventListener(
       'click',
       (): void => {
-        whyButton.textContent = explanationPanel.hidden
-          ? 'Hide explanation'
-          : 'Why this verdict?';
-        void toggleExplanation(explanationPanel);
+        void handleWhyButtonClick(
+          explainButton,
+          explanationPanel,
+        );
       },
     );
     scanSummary.textContent = `Last scanned ${formatDateTime(latest.scannedAt)}`;
@@ -207,17 +209,32 @@ function buildSubject(record: ScanRecord): HTMLSpanElement {
   return subject;
 }
 
-async function toggleExplanation(panel: HTMLElement): Promise<void> {
+async function handleWhyButtonClick(
+  button: HTMLButtonElement,
+  panel: HTMLElement,
+): Promise<void> {
   if (!panel.hidden) {
     panel.hidden = true;
+    button.textContent = 'Why this verdict?';
     return;
   }
-  const explanation = await provider.explain('');
-  renderExplanationInto(
-    panel,
-    explanation,
-  );
-  panel.hidden = false;
+
+  button.disabled = true;
+  button.textContent = 'Explaining…';
+  try {
+    const emailBody = await getLastScannedEmailBody();
+    // SHAP is slow (many forward passes), so this is only ever triggered
+    // by this on-demand click, never from the live content-script badge.
+    const explanation = await provider.explain(emailBody ?? '');
+    renderExplanationInto(
+      panel,
+      explanation,
+    );
+    panel.hidden = false;
+    button.textContent = 'Hide explanation';
+  } finally {
+    button.disabled = false;
+  }
 }
 
 function createMetaItem(

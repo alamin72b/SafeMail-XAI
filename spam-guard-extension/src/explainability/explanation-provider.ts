@@ -7,6 +7,14 @@ export interface SpamExplanation {
   readonly method: 'placeholder' | 'attention' | 'shap' | 'lime';
   readonly attributions: readonly TokenAttribution[];
   readonly summary: string;
+  /** Top spam-pushing tokens, if the provider computes them (e.g. SHAP). */
+  readonly topSpam?: readonly TokenAttribution[];
+  /** Top ham-pushing tokens, if the provider computes them (e.g. SHAP). */
+  readonly topHam?: readonly TokenAttribution[];
+  /** True if the email exceeded the model's input window. */
+  readonly wasTruncated?: boolean;
+  /** Analyst-facing caveat shown alongside the explanation, if any. */
+  readonly caveat?: string;
 }
 
 export interface ExplanationProvider {

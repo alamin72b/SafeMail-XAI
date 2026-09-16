@@ -345,6 +345,28 @@ li.empty {
   border-style: dashed;
 }
 
+#why-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.spamguard-explanation-method {
+  margin: 0 0 8px;
+  color: var(--muted);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.spamguard-explanation-truncated {
+  margin: 0 0 8px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: rgba(217, 119, 6, 0.12);
+  color: #b45309;
+  font-size: 11px;
+}
+
 .spamguard-heatmap {
   display: flex;
   flex-wrap: wrap;
@@ -355,6 +377,59 @@ li.empty {
   padding: 2px 5px;
   border-radius: 7px;
   font-size: 11px;
+}
+
+.spamguard-signal-list {
+  margin-top: 10px;
+}
+
+.spamguard-signal-list-heading {
+  margin: 0 0 4px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.spamguard-signal-list-spam .spamguard-signal-list-heading {
+  color: var(--spam);
+}
+
+.spamguard-signal-list-ham .spamguard-signal-list-heading {
+  color: var(--ham);
+}
+
+.spamguard-signal-list-items {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.spamguard-signal-list-items li {
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  border: none;
+}
+
+.spamguard-signal-list-spam .spamguard-signal-list-items li {
+  background: var(--spam-soft);
+  color: var(--spam);
+}
+
+.spamguard-signal-list-ham .spamguard-signal-list-items li {
+  background: var(--ham-soft);
+  color: var(--ham);
+}
+
+.spamguard-explanation-caveat {
+  margin: 10px 0 0;
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 10px;
+  font-style: italic;
 }
 
 @media (max-width: 360px) {
