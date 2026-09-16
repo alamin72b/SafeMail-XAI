@@ -1,4 +1,9 @@
-import { ClassifyRequest, ClassificationResponse } from './types';
+import {
+  ClassifyRequest,
+  ClassificationResponse,
+  ExplainRequest,
+  ExplanationResponse,
+} from './types';
 
 const BASE_URL: string =
   process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:4000/api/v1';
@@ -19,12 +24,10 @@ interface NestErrorBody {
   error?: string;
 }
 
-export async function classifyEmail(
-  payload: ClassifyRequest,
-): Promise<ClassificationResponse> {
+async function postJson<T>(path: string, payload: unknown): Promise<T> {
   let response: Response;
   try {
-    response = await fetch(`${BASE_URL}/spam-detection/classify`, {
+    response = await fetch(`${BASE_URL}${path}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
@@ -51,5 +54,20 @@ export async function classifyEmail(
     throw new ApiError(response.status, detail);
   }
 
-  return (await response.json()) as ClassificationResponse;
+  return (await response.json()) as T;
+}
+
+export function classifyEmail(
+  payload: ClassifyRequest,
+): Promise<ClassificationResponse> {
+  return postJson<ClassificationResponse>(
+    '/spam-detection/classify',
+    payload,
+  );
+}
+
+export function explainEmail(
+  payload: ExplainRequest,
+): Promise<ExplanationResponse> {
+  return postJson<ExplanationResponse>('/spam-detection/explain', payload);
 }

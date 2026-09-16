@@ -16,3 +16,24 @@ export interface ClassificationResponse {
   };
   processedAt: string;
 }
+
+export interface ExplainRequest {
+  body: string;
+}
+
+export interface TokenContribution {
+  token: string;
+  shapValue: number; // positive pushes toward SPAM, negative toward HAM
+}
+
+export interface ExplanationResponse {
+  verdict: 'SPAM' | 'HAM';
+  spamProbability: number;
+  baseValue: number;
+  truncatedTokenCount: number;
+  wasTruncated: boolean;
+  tokens: TokenContribution[];
+  topSpam: TokenContribution[];
+  topHam: TokenContribution[];
+  caveat: string;
+}

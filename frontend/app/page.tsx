@@ -3,17 +3,20 @@
 import { useState } from 'react';
 import EmailIntakeForm from '@/components/EmailIntakeForm';
 import AnalysisBreakdown from '@/components/AnalysisBreakdown';
+import ExplanationPanel from '@/components/ExplanationPanel';
 import { classifyEmail, ApiError } from '@/lib/api';
 import { ClassifyRequest, ClassificationResponse } from '@/lib/types';
 
 export default function DashboardPage(): React.JSX.Element {
   const [result, setResult] = useState<ClassificationResponse | null>(null);
+  const [submittedBody, setSubmittedBody] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = async (payload: ClassifyRequest): Promise<void> => {
     setLoading(true);
     setError(null);
+    setSubmittedBody(payload.body);
     try {
       const response = await classifyEmail(payload);
       setResult(response);
@@ -67,7 +70,12 @@ export default function DashboardPage(): React.JSX.Element {
               confidence.
             </div>
           )}
-          {!loading && result !== null && <AnalysisBreakdown result={result} />}
+          {!loading && result !== null && (
+            <div className="space-y-6">
+              <AnalysisBreakdown result={result} />
+              <ExplanationPanel emailBody={submittedBody} />
+            </div>
+          )}
         </section>
       </div>
     </main>
