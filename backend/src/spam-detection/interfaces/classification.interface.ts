@@ -27,3 +27,22 @@ export interface HealthResponse {
   status: 'ok' | 'initializing';
   engineReady: boolean;
 }
+
+/** A single token's contribution to the spam probability, from SHAP. */
+export interface TokenContribution {
+  token: string;
+  shapValue: number; // positive pushes toward SPAM, negative toward HAM
+}
+
+/** Full response contract returned by POST /spam-detection/explain. */
+export interface ExplanationResponse {
+  verdict: 'SPAM' | 'HAM';
+  spamProbability: number;
+  baseValue: number; // SHAP base/expected value
+  truncatedTokenCount: number; // how many of the 128 tokens were used
+  wasTruncated: boolean; // true if the email exceeded 128 tokens
+  tokens: TokenContribution[]; // in reading order, only tokens the model saw
+  topSpam: TokenContribution[]; // top ~8 most spam-pushing
+  topHam: TokenContribution[]; // top ~8 most ham-pushing
+  caveat: string;
+}

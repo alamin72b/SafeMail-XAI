@@ -7,15 +7,21 @@ import {
   Post,
 } from '@nestjs/common';
 import { SpamDetectionService } from './spam-detection.service';
+import { ExplanationService } from './explanation.service';
 import { ClassifyEmailDto } from './dto/classify-email.dto';
+import { ExplainEmailDto } from './dto/explain-email.dto';
 import {
   ClassificationResponse,
+  ExplanationResponse,
   HealthResponse,
 } from './interfaces/classification.interface';
 
 @Controller('spam-detection')
 export class SpamDetectionController {
-  constructor(private readonly spamDetectionService: SpamDetectionService) {}
+  constructor(
+    private readonly spamDetectionService: SpamDetectionService,
+    private readonly explanationService: ExplanationService,
+  ) {}
 
   @Post('classify')
   @HttpCode(HttpStatus.OK)
@@ -44,5 +50,13 @@ export class SpamDetectionController {
   health(): HealthResponse {
     const engineReady = this.spamDetectionService.isReady();
     return { status: engineReady ? 'ok' : 'initializing', engineReady };
+  }
+
+  @Post('explain')
+  @HttpCode(HttpStatus.OK)
+  async explain(
+    @Body() dto: ExplainEmailDto,
+  ): Promise<ExplanationResponse> {
+    return this.explanationService.explain(dto);
   }
 }
