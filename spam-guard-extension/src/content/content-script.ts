@@ -4,7 +4,7 @@ import {
   type PredictEmailRequest,
   type PredictionResponse,
 } from '../shared/messages';
-import { isBadgeRendered, renderBadge, type BadgeState } from './badge';
+import { type BadgeState, isBadgeRendered, renderBadge } from './badge';
 import { extractOpenEmail, findSubjectElement } from './email-extractor';
 
 const SCAN_DEBOUNCE_MS = 400;
@@ -17,9 +17,12 @@ let lastState: BadgeState | null = null;
 
 function scheduleScan(): void {
   window.clearTimeout(debounceTimer);
-  debounceTimer = window.setTimeout((): void => {
-    void scan();
-  }, SCAN_DEBOUNCE_MS);
+  debounceTimer = window.setTimeout(
+    (): void => {
+      void scan();
+    },
+    SCAN_DEBOUNCE_MS,
+  );
 }
 
 async function scan(): Promise<void> {
@@ -33,14 +36,22 @@ async function scan(): Promise<void> {
 
   if (key === activeKey) {
     if (lastState !== null && !isBadgeRendered()) {
-      renderBadge(subjectElement, lastState, provider);
+      renderBadge(
+        subjectElement,
+        lastState,
+        provider,
+      );
     }
     return;
   }
 
   activeKey = key;
   lastState = null;
-  renderBadge(subjectElement, { kind: 'checking' }, provider);
+  renderBadge(
+    subjectElement,
+    { kind: 'checking' },
+    provider,
+  );
 
   const response = await sendPredictionRequest({
     type: 'PREDICT_EMAIL',
@@ -59,7 +70,11 @@ async function scan(): Promise<void> {
 
   const freshSubject = findSubjectElement(document);
   if (freshSubject !== null) {
-    renderBadge(freshSubject, lastState, provider);
+    renderBadge(
+      freshSubject,
+      lastState,
+      provider,
+    );
   }
 }
 
@@ -68,24 +83,27 @@ function sendPredictionRequest(
 ): Promise<PredictionResponse> {
   return new Promise((resolve): void => {
     try {
-      chrome.runtime.sendMessage(request, (response: unknown): void => {
-        if (chrome.runtime.lastError !== undefined) {
-          resolve({
-            type: 'PREDICTION_ERROR',
-            reason:
+      chrome.runtime.sendMessage(
+        request,
+        (response: unknown): void => {
+          if (chrome.runtime.lastError !== undefined) {
+            resolve({
+              type: 'PREDICTION_ERROR',
+              reason:
               chrome.runtime.lastError.message ?? 'Extension messaging failed.',
-          });
-          return;
-        }
-        resolve(
-          isPredictionResponse(response)
-            ? response
-            : {
+            });
+            return;
+          }
+          resolve(
+            isPredictionResponse(response)
+              ? response
+              : {
                 type: 'PREDICTION_ERROR',
                 reason: 'Malformed response from service worker.',
               },
-        );
-      });
+          );
+        },
+      );
     } catch {
       resolve({
         type: 'PREDICTION_ERROR',
@@ -96,5 +114,8 @@ function sendPredictionRequest(
 }
 
 const observer = new MutationObserver(scheduleScan);
-observer.observe(document.body, { childList: true, subtree: true });
+observer.observe(
+  document.body,
+  { childList: true, subtree: true },
+);
 scheduleScan();

@@ -1,8 +1,8 @@
+import { appendScanRecord } from '../shared/history';
 import {
   isPredictEmailRequest,
   type PredictionResponse,
 } from '../shared/messages';
-import { appendScanRecord } from '../shared/history';
 import { getApiBaseUrl } from '../shared/settings';
 import type { SpamPredictionResult } from '../shared/types';
 import { ApiError, predictSpam } from './api-client';
@@ -24,7 +24,10 @@ chrome.runtime.onMessage.addListener(
     if (!isPredictEmailRequest(message)) {
       return false;
     }
-    void handlePrediction(message.subject, message.body).then(sendResponse);
+    void handlePrediction(
+      message.subject,
+      message.body,
+    ).then(sendResponse);
     return true;
   },
 );
@@ -46,8 +49,14 @@ async function handlePrediction(
     }
 
     const apiBaseUrl = await getApiBaseUrl();
-    const result = await predictSpam(apiBaseUrl, trimmed);
-    predictionCache.set(cacheKey, result);
+    const result = await predictSpam(
+      apiBaseUrl,
+      trimmed,
+    );
+    predictionCache.set(
+      cacheKey,
+      result,
+    );
 
     await appendScanRecord({
       subject,

@@ -33,7 +33,13 @@ export function renderExplanationInto(
 }
 
 function importanceToColor(importance: number): string {
-  const clamped = Math.max(-1, Math.min(1, importance));
+  const clamped = Math.max(
+    -1,
+    Math.min(
+      1,
+      importance,
+    ),
+  );
   const alpha = Math.abs(clamped) * 0.75;
   return clamped >= 0
     ? `rgba(220, 53, 69, ${alpha})`

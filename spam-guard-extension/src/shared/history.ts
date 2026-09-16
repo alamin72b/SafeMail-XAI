@@ -10,7 +10,10 @@ export async function getScanHistory(): Promise<readonly ScanRecord[]> {
 
 export async function appendScanRecord(record: ScanRecord): Promise<void> {
   const existing = await getScanHistory();
-  const updated = [record, ...existing].slice(0, HISTORY_LIMIT);
+  const updated = [record, ...existing].slice(
+    0,
+    HISTORY_LIMIT,
+  );
   await chrome.storage.session.set({ [HISTORY_KEY]: updated });
 }
 

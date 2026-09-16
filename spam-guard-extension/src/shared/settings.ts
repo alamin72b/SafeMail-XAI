@@ -28,5 +28,8 @@ export async function setApiBaseUrl(url: string): Promise<void> {
 }
 
 function normalizeBaseUrl(url: string): string {
-  return url.endsWith('/') ? url.slice(0, -1) : url;
+  return url.endsWith('/') ? url.slice(
+    0,
+    -1,
+  ) : url;
 }

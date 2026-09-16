@@ -29,7 +29,11 @@ export function extractOpenEmail(root: Document): ExtractedEmail | null {
   }
 
   const subject = normalizeWhitespace(subjectElement.textContent ?? '');
-  return { subject, body: body.slice(0, MAX_BODY_CHARS) };
+  return { subject,
+    body: body.slice(
+      0,
+      MAX_BODY_CHARS,
+    ) };
 }
 
 function cleanBodyText(element: HTMLElement): string {
@@ -47,7 +51,13 @@ function cleanBodyText(element: HTMLElement): string {
 
 function normalizeWhitespace(text: string): string {
   return text
-    .replace(/\u00a0/g, ' ')
-    .replace(/\s+/g, ' ')
+    .replace(
+      /\u00a0/g,
+      ' ',
+    )
+    .replace(
+      /\s+/g,
+      ' ',
+    )
     .trim();
 }

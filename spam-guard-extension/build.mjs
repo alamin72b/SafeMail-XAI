@@ -1,8 +1,12 @@
-import { build } from 'esbuild';
 import { cp, mkdir } from 'node:fs/promises';
 
+import { build } from 'esbuild';
+
 const outdir = 'dist';
-await mkdir(outdir, { recursive: true });
+await mkdir(
+  outdir,
+  { recursive: true },
+);
 
 const common = {
   bundle: true,
@@ -39,5 +43,9 @@ await Promise.all([
   }),
 ]);
 
-await cp('public', outdir, { recursive: true });
+await cp(
+  'public',
+  outdir,
+  { recursive: true },
+);
 console.log('Build complete → dist/');

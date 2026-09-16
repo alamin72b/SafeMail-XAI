@@ -1,6 +1,6 @@
 import {
-  isNestErrorBody,
   isBackendClassificationResponse,
+  isNestErrorBody,
   type SpamPredictionResult,
 } from '../shared/types';
 
@@ -22,12 +22,18 @@ export async function predictSpam(
   body: string,
 ): Promise<SpamPredictionResult> {
   try {
-    return await requestOnce(apiBaseUrl, body);
+    return await requestOnce(
+      apiBaseUrl,
+      body,
+    );
   } catch (error) {
     if (error instanceof ApiError && error.isHttpError) {
       throw error;
     }
-    return requestOnce(apiBaseUrl, body);
+    return requestOnce(
+      apiBaseUrl,
+      body,
+    );
   }
 }
 
@@ -36,23 +42,38 @@ async function requestOnce(
   body: string,
 ): Promise<SpamPredictionResult> {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  const timeout = setTimeout(
+    () => controller.abort(),
+    REQUEST_TIMEOUT_MS,
+  );
 
   try {
-    const response = await fetch(`${apiBaseUrl}${CLASSIFY_PATH}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ body }),
-      signal: controller.signal,
-    });
+    const response = await fetch(
+      `${apiBaseUrl}${CLASSIFY_PATH}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ body }),
+        signal: controller.signal,
+      },
+    );
 
     const payload: unknown = await response.json().catch((): null => null);
 
     if (!response.ok) {
-      throw new ApiError(formatHttpError(response.status, payload), true);
+      throw new ApiError(
+        formatHttpError(
+          response.status,
+          payload,
+        ),
+        true,
+      );
     }
     if (!isBackendClassificationResponse(payload)) {
-      throw new ApiError('API returned a malformed prediction payload.', true);
+      throw new ApiError(
+        'API returned a malformed prediction payload.',
+        true,
+      );
     }
     return {
       isSpam: payload.verdict === 'SPAM',
@@ -63,7 +84,10 @@ async function requestOnce(
     };
   } catch (error) {
     if (error instanceof DOMException && error.name === 'AbortError') {
-      throw new ApiError('Spam detection request timed out.', false);
+      throw new ApiError(
+        'Spam detection request timed out.',
+        false,
+      );
     }
     throw error;
   } finally {

@@ -8,10 +8,10 @@ const PANEL_ID = 'spamguard-explanation-panel';
 export type BadgeState =
   | { readonly kind: 'checking' }
   | {
-      readonly kind: 'verdict';
-      readonly result: SpamPredictionResult;
-      readonly emailBody: string;
-    }
+    readonly kind: 'verdict';
+    readonly result: SpamPredictionResult;
+    readonly emailBody: string;
+  }
   | { readonly kind: 'unavailable'; readonly reason: string };
 
 export function isBadgeRendered(): boolean {
@@ -44,9 +44,16 @@ export function renderBadge(
     whyButton.type = 'button';
     whyButton.className = 'spamguard-why';
     whyButton.textContent = 'Why?';
-    whyButton.addEventListener('click', (): void => {
-      void toggleExplanation(container, provider, state.emailBody);
-    });
+    whyButton.addEventListener(
+      'click',
+      (): void => {
+        void toggleExplanation(
+          container,
+          provider,
+          state.emailBody,
+        );
+      },
+    );
     container.appendChild(whyButton);
   }
 }
@@ -59,7 +66,10 @@ function ensureContainer(subjectElement: HTMLElement): HTMLElement {
   const container = document.createElement('span');
   container.id = CONTAINER_ID;
   container.className = 'spamguard-container';
-  subjectElement.insertAdjacentElement('afterend', container);
+  subjectElement.insertAdjacentElement(
+    'afterend',
+    container,
+  );
   return container;
 }
 
@@ -93,8 +103,14 @@ async function toggleExplanation(
   const panel = document.createElement('div');
   panel.id = PANEL_ID;
   panel.className = 'spamguard-explanation-panel';
-  container.insertAdjacentElement('afterend', panel);
+  container.insertAdjacentElement(
+    'afterend',
+    panel,
+  );
 
   const explanation = await provider.explain(emailBody);
-  renderExplanationInto(panel, explanation);
+  renderExplanationInto(
+    panel,
+    explanation,
+  );
 }

@@ -13,7 +13,10 @@ export class LruCache<K, V> {
       return undefined;
     }
     this.entries.delete(key);
-    this.entries.set(key, value);
+    this.entries.set(
+      key,
+      value,
+    );
     return value;
   }
 
@@ -21,7 +24,10 @@ export class LruCache<K, V> {
     if (this.entries.has(key)) {
       this.entries.delete(key);
     }
-    this.entries.set(key, value);
+    this.entries.set(
+      key,
+      value,
+    );
     if (this.entries.size > this.capacity) {
       const oldest = this.entries.keys().next();
       if (!oldest.done) {
