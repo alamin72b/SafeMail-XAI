@@ -1,0 +1,7 @@
+fastapi
+uvicorn[standard]
+shap
+transformers
+sentencepiece
+onnxruntime
+numpy
