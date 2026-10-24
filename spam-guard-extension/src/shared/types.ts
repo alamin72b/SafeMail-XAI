@@ -27,6 +27,23 @@ export interface NestErrorBody {
   readonly error?: string;
 }
 
+export interface BackendTokenContribution {
+  readonly token: string;
+  readonly shapValue: number;
+}
+
+export interface BackendExplanationResponse {
+  readonly verdict: 'SPAM' | 'HAM';
+  readonly spamProbability: number;
+  readonly baseValue: number;
+  readonly truncatedTokenCount: number;
+  readonly wasTruncated: boolean;
+  readonly tokens: readonly BackendTokenContribution[];
+  readonly topSpam: readonly BackendTokenContribution[];
+  readonly topHam: readonly BackendTokenContribution[];
+  readonly caveat?: string;
+}
+
 export interface ScanRecord {
   readonly subject: string;
   readonly label: 'spam' | 'ham';
@@ -85,5 +102,40 @@ export function isNestErrorBody(value: unknown): value is NestErrorBody {
   return (
     typeof candidate.statusCode === 'number' &&
     (typeof candidate.message === 'string' || Array.isArray(candidate.message))
+  );
+}
+
+function isBackendTokenContribution(
+  value: unknown,
+): value is BackendTokenContribution {
+  if (typeof value !== 'object' || value === null) {
+    return false;
+  }
+  const candidate = value as Record<string, unknown>;
+  return (
+    typeof candidate.token === 'string' &&
+    typeof candidate.shapValue === 'number'
+  );
+}
+
+export function isBackendExplanationResponse(
+  value: unknown,
+): value is BackendExplanationResponse {
+  if (typeof value !== 'object' || value === null) {
+    return false;
+  }
+  const candidate = value as Record<string, unknown>;
+  return (
+    (candidate.verdict === 'SPAM' || candidate.verdict === 'HAM') &&
+    typeof candidate.spamProbability === 'number' &&
+    typeof candidate.baseValue === 'number' &&
+    typeof candidate.truncatedTokenCount === 'number' &&
+    typeof candidate.wasTruncated === 'boolean' &&
+    Array.isArray(candidate.tokens) &&
+    candidate.tokens.every(isBackendTokenContribution) &&
+    Array.isArray(candidate.topSpam) &&
+    candidate.topSpam.every(isBackendTokenContribution) &&
+    Array.isArray(candidate.topHam) &&
+    candidate.topHam.every(isBackendTokenContribution)
   );
 }

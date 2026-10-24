@@ -1,4 +1,4 @@
-import { PlaceholderExplanationProvider } from '../explainability/explanation-provider';
+import { ShapExplanationProvider } from '../explainability/shap-explanation-provider';
 import {
   isPredictionResponse,
   type PredictEmailRequest,
@@ -9,7 +9,7 @@ import { extractOpenEmail, findSubjectElement } from './email-extractor';
 
 const SCAN_DEBOUNCE_MS = 400;
 
-const provider = new PlaceholderExplanationProvider();
+const provider = new ShapExplanationProvider();
 
 let debounceTimer: number | undefined;
 let activeKey: string | null = null;

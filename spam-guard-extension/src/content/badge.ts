@@ -103,6 +103,8 @@ async function toggleExplanation(
   const panel = document.createElement('div');
   panel.id = PANEL_ID;
   panel.className = 'spamguard-explanation-panel';
+  panel.textContent =
+    'Computing SHAP explanation… This may take up to a minute.';
   container.insertAdjacentElement(
     'afterend',
     panel,
